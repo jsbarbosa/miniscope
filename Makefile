@@ -15,11 +15,11 @@
 
 # parameters (change this stuff accordingly)
 # project name
-PRJ = main
+PRJ = leds2
 # avr mcu
 MCU = atmega328p
 # mcu clock frequency
-CLK = 16000000
+CLK = 1000000
 # avr programmer (and port if necessary)
 # e.g. PRG = usbtiny -or- PRG = arduino -P /dev/tty.usbmodem411
 PRG = usbtiny
@@ -48,7 +48,7 @@ CFLAGS    = -Wall -Os -DF_CPU=$(CLK) -mmcu=$(MCU) $(INCLUDE)
 CPPFLAGS =
 
 # executables
-AVRDUDE = avrdude -c $(PRG) -p $(MCU)
+AVRDUDE = sudo avrdude -C avrdude_gpio.conf -c pi_1 -p $(MCU)
 OBJCOPY = avr-objcopy
 OBJDUMP = avr-objdump
 SIZE    = avr-size --format=avr --mcu=$(MCU)
