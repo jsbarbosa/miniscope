@@ -12,13 +12,15 @@
 #define BAUD 4800                
 #define MYUBRR (FOSC/16/BAUD -1)
 
-#define ADC_PIN	0
 #define ADC_THRESHOLD 1023
+
+#define MULDELIMETER ','
+#define BREAKLINE '\n'
 
 uint16_t adc_read(uint8_t adcx);
 
 void sendChar(char tosend);
-void sendString(char *tosend);
+void sendString(char *tosend, char delimiter);
 
 int main( void )
 {
@@ -32,27 +34,34 @@ int main( void )
     DDRD = 0b01000000;   //set all of port D as inputs except for TX
 	
 	ADCSRA |= _BV(ADEN);
+	
+	int i;
 
 	uint16_t num;
 	char hex[5];
 	
     while(1)
     {
-		num = adc_read(ADC_PIN);
-		itoa(num, hex, 10);
+		for(i = 0; i < 6; i++)
+		{
+			num = adc_read(i);
+			itoa(num, hex, 10);
 
-		sendString(hex);
+			sendString(hex, MULDELIMETER);
+		}
+		sendChar(BREAKLINE);
+		_delay_ms(50);
     }   
 }
 
-void sendString(char *tosend)
+void sendString(char *tosend, char delimiter)
 {
 	int i;
 	for (i = 0; i < strlen(tosend); i++)
 	{ 
 		sendChar(tosend[i]);
 	}
-	sendChar('\n');
+	sendChar(delimiter);
 }
 
 void sendChar(char tosend)
@@ -60,8 +69,6 @@ void sendChar(char tosend)
 	while (( UCSR0A & (1<<UDRE0))  == 0){};
 	UDR0 = tosend; 
 }
-
-
 
 uint16_t adc_read(uint8_t adcx)
 {
