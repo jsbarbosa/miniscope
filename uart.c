@@ -2,16 +2,23 @@
  
 
 #include <avr/io.h>
-#include <stdint.h>                     // needed for uint8_t
+#include <stdint.h>
+#include <stdlib.h>                 // needed for uint8_t
 #include <util/delay.h>
+#include <string.h>
+
 
 #define FOSC 1000000                       // Clock Speed
-#define BAUD 9600                
-#define MYUBRR FOSC/1/BAUD -1
+#define BAUD 4800                
+#define MYUBRR (FOSC/16/BAUD -1)
 
+#define ADC_PIN	0
+#define ADC_THRESHOLD 1023
 
-char ReceivedChar;
+uint16_t adc_read(uint8_t adcx);
 
+void sendChar(char tosend);
+void sendString(char *tosend);
 
 int main( void )
 {
@@ -19,21 +26,51 @@ int main( void )
     UBRR0H = (MYUBRR >> 8);
     UBRR0L = MYUBRR;
     
-    UCSR0B |= (1 << RXEN0) | (1 << TXEN0);      // Enable receiver and transmitter
-    UCSR0C |= (1 << UCSZ01) | (1 << UCSZ00);    // Set frame: 8data, 1 stp
+    UCSR0B = (1 << TXEN0)| (1 << TXCIE0) | (1 << RXEN0) | (1 << RXCIE0); ;      // Enable receiver and transmitter
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);    // Set frame: 8data, 1 stp
     
     DDRD = 0b01000000;   //set all of port D as inputs except for TX
-	DDRC = 0b00100000;
+	
+	ADCSRA |= _BV(ADEN);
+
+	uint16_t num;
+	char hex[5];
 	
     while(1)
     {
-		
-		//while ( !(UCSR0A & (1 << RXC0)) )  // Wait until data is received
-        
-        ReceivedChar = 22;
-        
-        //while ( !(UCSR0A & (1 << UDRE0)) ) // Wait until buffer is empty
+		num = adc_read(ADC_PIN);
+		itoa(num, hex, 10);
 
-        UDR0 = ReceivedChar;                    // Send the data to the TX buffer
-    }    
+		sendString(hex);
+    }   
+}
+
+void sendString(char *tosend)
+{
+	int i;
+	for (i = 0; i < strlen(tosend); i++)
+	{ 
+		sendChar(tosend[i]);
+	}
+	sendChar('\n');
+}
+
+void sendChar(char tosend)
+{
+	while (( UCSR0A & (1<<UDRE0))  == 0){};
+	UDR0 = tosend; 
+}
+
+
+
+uint16_t adc_read(uint8_t adcx)
+{
+	ADMUX	&=	0xf0;
+	ADMUX	|=	adcx;
+
+	ADCSRA |= _BV(ADSC);
+
+	while ( (ADCSRA & _BV(ADSC)) );
+
+	return ADC;
 }
