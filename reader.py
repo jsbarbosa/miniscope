@@ -12,6 +12,10 @@ MAXADC = 2**10 - 1
 MULDELIMITER = ","
 SLEEPTIME = 1e-0
 
+ports = serial.tools.list_ports.comports()
+ports = [str(port) for port in ports]
+print(ports)
+
 class Serial(serial.Serial):
 	def addInternal(self):
 		self.data = 0
