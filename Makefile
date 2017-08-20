@@ -15,7 +15,7 @@
 
 # parameters (change this stuff accordingly)
 # project name
-PRJ = leds2
+PRJ = uart
 # avr mcu
 MCU = atmega328p
 # mcu clock frequency
@@ -26,9 +26,14 @@ PRG = usbtiny
 # fuse values for avr: low, high, and extended
 # these values are from an Arduino Uno (ATMega328P)
 # see http://www.engbedded.com/fusecalc/ for other MCUs and options
+# LFU = 0xFF
+# HFU = 0xDE
+# EFU = 0x05
+
 LFU = 0xFF
 HFU = 0xDE
 EFU = 0x05
+
 # program source files (not including external libraries)
 SRC = $(PRJ).cpp
 # where to look for external libraries (consisting of .c/.cpp files and .h files)
