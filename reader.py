@@ -10,11 +10,11 @@ TIMEOUT = 0.1
 VREF = 5.0
 MAXADC = 2**10 - 1
 MULDELIMITER = ","
-SLEEPTIME = 1e-0
+SLEEPTIME = 50e-3
 
-ports = serial.tools.list_ports.comports()
-ports = [str(port) for port in ports]
-print(ports)
+#~ ports = serial.tools.list_ports.comports()
+#~ ports = [str(port) for port in ports]
+#~ print(ports)
 
 class Serial(serial.Serial):
 	def addInternal(self):
@@ -39,7 +39,10 @@ class Serial(serial.Serial):
 	def internalLoop(self):
 		self.flush()
 		while True:
-			self.data = self.readLine()
+			try:
+				self.data = self.readLine()
+			except KeyboardInterrupt:
+				break
 	
 	def getData(self):
 		return self.data

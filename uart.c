@@ -17,6 +17,7 @@
 #define BREAKLINE '\n'
 
 uint16_t adc_read(uint8_t adcx);
+void nextX(uint8_t current);
 
 void sendChar(char tosend);
 void sendString(char *tosend, char delimiter);
@@ -55,7 +56,7 @@ int main( void )
 		sendChar(BREAKLINE);
 
         nextX(current);
-        current = (current+1)%100;
+        current = (current + 1)%100;
 
 		_delay_ms(delay);
     }
