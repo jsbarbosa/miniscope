@@ -18,6 +18,7 @@
 #define HALFPOINTSADDR 0x01
 #define DELAYXADDR 0x02
 #define DELAYYADDR 0x03
+#define NMESUREMENTSADDR 0x04
 
 #define READ 0x32
 #define WRITE 0x16
@@ -42,7 +43,7 @@ void sendString(char *tosend, char delimiter);
 
 uint8_t sendMeasurent(int x, int y, uint16_t value);
 
-uint8_t HALFPOINTS, DELAYX, DELAYY;
+uint8_t HALFPOINTS, DELAYX, DELAYY, NMESUREMENTS;
 
 int main(void)
 {
@@ -68,6 +69,7 @@ int main(void)
 	HALFPOINTS = 10;
 	DELAYX = 0;
 	DELAYY = 0;
+	NMESUREMENTS = 1;
 
     while(1)
     {
@@ -86,6 +88,10 @@ int main(void)
 			else if (string[1] == DELAYYADDR)
 			{
 				DELAYY = string[2];
+			}
+			else if (string[1] == NMESUREMENTSADDR)
+			{
+				NMESUREMENTS = string[2];
 			}
 			else
 			{
@@ -142,14 +148,21 @@ uint16_t from8to16(uint8_t first, uint8_t second)
 
 uint16_t adc_read(uint8_t adcx)
 {
-	ADMUX	&=	0xf0;
-	ADMUX	|=	adcx;
+	uint8_t i;
+	int sum = 0;
+	
+	for(i = 0; i < NMESUREMENTS; i++)
+	{ 
+		ADMUX	&=	0xf0;
+		ADMUX	|=	adcx;
 
-	ADCSRA |= _BV(ADSC);
+		ADCSRA |= _BV(ADSC);
 
-	while ( (ADCSRA & _BV(ADSC)) );
-
-	return ADC;
+		while ( (ADCSRA & _BV(ADSC)) );
+		
+		sum += ADC;
+	}
+	return sum/NMESUREMENTS;
 }
 
 void nextX(int current)
@@ -222,8 +235,6 @@ uint8_t sendMeasurent(int x, int y, uint16_t value)
 		{
 			return 1;
 		}
-		
-		
 	}
 }
 
@@ -252,7 +263,7 @@ uint8_t takeImage(void)
 		xc -= 1;
 		delay_ms(DELAYY);
 		
-		while((xc >= -HALFPOINTS) & stop)
+		while((xc >= -HALFPOINTS) & stop & (yc <= HALFPOINTS))
 		{
 			nextX(xc);
 			if(sendMeasurent(xc, yc, adc_read(0)))
@@ -277,8 +288,8 @@ uint8_t takeImage(void)
 
 void delay_ms(uint8_t count)
 {
-  while(count--) 
-  {
-    _delay_ms(1);
-  }
+	while(count--) 
+	{
+		_delay_ms(1);
+	}
 }
