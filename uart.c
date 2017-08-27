@@ -15,17 +15,34 @@
 
 #define MULDELIMETER ','
 #define BREAKLINE '\n'
-#define HALFPOINTS 20
+#define HALFPOINTSADDR 0x01
+#define DELAYXADDR 0x02
+#define DELAYYADDR 0x03
+
+#define READ 0x32
+#define WRITE 0x16
+
+#define TAKEIMAGE 0x20
+#define STOP 0x40
+
+void delay_ms(uint8_t count);
 
 uint16_t adc_read(uint8_t adcx);
+uint8_t takeImage(void);
 void nextX(int current);
 void nextY(int current);
 void setPWM(void);
 
+char *getString(uint8_t len);
+uint16_t from8to16(uint8_t first, uint8_t second);
+
+char getChar(void);
 void sendChar(char tosend);
 void sendString(char *tosend, char delimiter);
 
-void sendMeasurent(int x, int y, uint16_t value);
+uint8_t sendMeasurent(int x, int y, uint16_t value);
+
+uint8_t HALFPOINTS, DELAYX, DELAYY;
 
 int main(void)
 {
@@ -43,52 +60,42 @@ int main(void)
 	ADCSRA |= _BV(ADEN);
 	
 	setPWM();
-
-	int delayx = 5, delayy = 0;
 	
-    int xc = -HALFPOINTS, yc = -HALFPOINTS;
+	char *string;
+	
+	uint16_t val;
+	
+	HALFPOINTS = 10;
+	DELAYX = 0;
+	DELAYY = 0;
 
     while(1)
     {
-		/*
-		for(i = 0; i < 6; i++)
-		{
-			num = adc_read(i);
-			itoa(num, hex, 10);
-
-			sendString(hex, MULDELIMETER);
-		}
-		itoa(current, hex, 10);
-		sendString(hex, MULDELIMETER);
-		sendChar(BREAKLINE);*/
+		string = getString(3);
 		
-		yc = -HALFPOINTS;
-		
-		while(yc <= HALFPOINTS)
+		if(string[0] == WRITE)
 		{
-			//xc = -HALFPOINTS;
-			while(xc <= HALFPOINTS)
+			if(string[1] == HALFPOINTSADDR)
 			{
-				nextX(xc);
-				sendMeasurent(xc, yc, adc_read(0));
-				xc += 1;
-				//_delay_ms(delayx);
+				HALFPOINTS = string[2];
 			}
-			
-			nextY(yc);
-			yc += 1;
-			xc -= 1;
-			
-			while(xc >= -HALFPOINTS)
+			else if (string[1] == DELAYXADDR)
 			{
-				nextX(xc);
-				sendMeasurent(xc, yc, adc_read(0));
-				xc -= 1;
+				DELAYX = string[2];
 			}
-			xc += 1;
-			
-			nextY(yc);
-			yc += 1;
+			else if (string[1] == DELAYYADDR)
+			{
+				DELAYY = string[2];
+			}
+			else
+			{
+				val = from8to16(string[1], string[2]);
+				
+				if (val == TAKEIMAGE)
+				{
+					takeImage();
+				}
+			}
 		}
     }
 }
@@ -107,6 +114,30 @@ void sendChar(char tosend)
 {
 	while (( UCSR0A & (1<<UDRE0))  == 0){};
 	UDR0 = tosend;
+}
+
+char getChar(void)
+{
+	while (!(UCSR0A & _BV(RXC0)));
+	return (char) UDR0;
+}
+
+char *getString(uint8_t len)
+{
+	uint8_t i;
+	char temp[len];
+	
+	for(i = 0; i<len; i++)
+	{
+		temp[i] = getChar();
+	}
+	return temp;
+}
+
+uint16_t from8to16(uint8_t first, uint8_t second)
+{
+	uint16_t x = (first << 8) | second;
+	return x;
 }
 
 uint16_t adc_read(uint8_t adcx)
@@ -160,18 +191,94 @@ void setPWM(void)
 	// set prescaler to 8 and starts PWM
 }
 
-void sendMeasurent(int x, int y, uint16_t value)
+uint8_t sendMeasurent(int x, int y, uint16_t value)
 {
-	char hex[5];
+	char hex[5], *temp;
 	
-	itoa(x, hex, 10);
-	sendString(hex, MULDELIMETER);
+	uint16_t received;
 	
-	itoa(y, hex, 10);
-	sendString(hex, MULDELIMETER);
-	
-	itoa(value, hex, 10);
-	sendString(hex, MULDELIMETER);
-	
-	sendChar(BREAKLINE);
+	while (1)
+	{
+		itoa(x, hex, 10);
+		sendString(hex, MULDELIMETER);
+		
+		itoa(y, hex, 10);
+		sendString(hex, MULDELIMETER);
+		
+		itoa(value, hex, 10);
+		sendString(hex, MULDELIMETER);
+		
+		sendChar(BREAKLINE);
+		
+		temp = getString(3);
+		received = from8to16(temp[1], temp[2]);
+		
+		if((temp[0] == WRITE) & (received == STOP))
+		{
+			return 0;
+		}
+		
+		else if((temp[0] == READ) & (received == value))
+		{
+			return 1;
+		}
+		
+		
+	}
+}
+
+uint8_t takeImage(void)
+{
+    int xc = -HALFPOINTS, yc = -HALFPOINTS, stop = 1;
+			
+	while((yc <= HALFPOINTS) & stop)
+	{
+		while((xc <= HALFPOINTS) & stop)
+		{
+			nextX(xc);
+			if(sendMeasurent(xc, yc, adc_read(0)))
+			{
+				xc += 1;
+			}
+			else
+			{
+				return 0;
+			}
+			delay_ms(DELAYX);
+		}
+		
+		nextY(yc);
+		yc += 1;
+		xc -= 1;
+		delay_ms(DELAYY);
+		
+		while((xc >= -HALFPOINTS) & stop)
+		{
+			nextX(xc);
+			if(sendMeasurent(xc, yc, adc_read(0)))
+			{
+				xc -= 1;
+			}
+			else
+			{
+				return 0;
+			}
+			delay_ms(DELAYX);
+		}
+		
+		xc += 1;
+		
+		nextY(yc);
+		yc += 1;
+		delay_ms(DELAYY);
+	}
+	return 1;
+}
+
+void delay_ms(uint8_t count)
+{
+  while(count--) 
+  {
+    _delay_ms(1);
+  }
 }

@@ -51,6 +51,7 @@ class Serial(serial.Serial):
 	def getData(self):
 		try:
 			data = port.readLine().split(MULDELIMITER)
+			self.write("0".encode())
 			return [int(item) for item in data]
 		except:
 			return [0, 0, 0]
