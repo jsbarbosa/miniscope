@@ -15,12 +15,17 @@
 
 #define MULDELIMETER ','
 #define BREAKLINE '\n'
+#define HALFPOINTS 12
 
 uint16_t adc_read(uint8_t adcx);
-void nextX(uint8_t current);
+void nextX(int current);
+void nextY(int current);
+void setPWM(void);
 
 void sendChar(char tosend);
 void sendString(char *tosend, char delimiter);
+
+void sendMeasurent(int x, int y, uint16_t value);
 
 int main( void )
 {
@@ -36,16 +41,18 @@ int main( void )
     PORTB = 0x00;
 
 	ADCSRA |= _BV(ADEN);
+	
+	setPWM();
 
-	int i, delay = 50;
+	int i, dx = 50, delayx = 5, delayy = 0;
 
 	uint16_t num;
-
-    uint8_t current = 0;
-	char hex[5];
+	
+    int xc, yc;
 
     while(1)
     {
+		/*
 		for(i = 0; i < 6; i++)
 		{
 			num = adc_read(i);
@@ -53,12 +60,36 @@ int main( void )
 
 			sendString(hex, MULDELIMETER);
 		}
-		sendChar(BREAKLINE);
-
-        nextX(current);
-        current = (current + 1)%100;
-
-		_delay_ms(delay);
+		itoa(current, hex, 10);
+		sendString(hex, MULDELIMETER);
+		sendChar(BREAKLINE);*/
+		
+		yc = -HALFPOINTS;
+		
+		while(yc <= HALFPOINTS)
+		{
+			while(xc <= HALFPOINTS)
+			{
+				nextX(xc);
+				sendMeasurent(xc, yc, rand()%1023);
+				xc += 1;
+				_delay_ms(delayx);
+			}
+			
+			nextY(yc);
+			yc += 1;
+			
+			while(xc >= -HALFPOINTS)
+			{
+				xc -= 1;
+				nextX(xc);
+				sendMeasurent(xc, yc, rand()%1023);
+				_delay_ms(delayx);
+			}
+			
+			nextY(yc);
+			yc += 1;
+		}
     }
 }
 
@@ -90,27 +121,57 @@ uint16_t adc_read(uint8_t adcx)
 	return ADC;
 }
 
-void nextX(uint8_t current)
+void nextX(int current)
 {
-    PORTB &= 0xfc;
+    PORTB &= 0b11001111;
 
-    if(current == 49){PORTB |= 0;}
-    else if (current < 49){PORTB |= 1;}
-    else{PORTB |= 2;}
+    if (current < 0){PORTB |= (1 << DDB4);}
+    else{PORTB |= (1 << DDB5);}
+    
+    OCR1A = 127*abs(current)/HALFPOINTS;
 }
 
-// void nextY(uint8_t current)
-// {
-//     if (current < 49)
-//     {
-//
-//     }
-//     else if(current == 49)
-//     {
-//
-//     }
-//     else
-//     {
-//
-//     }
-// }
+void nextY(int current)
+{
+    PORTB &= 0b00111111;
+
+    if (current < 0){PORTB |= (1 << DDB6);}
+    else{PORTB |= (1 << DDB7);}
+    
+    OCR2A = 127*abs(current)/HALFPOINTS;
+}
+
+void setPWM(void)
+{
+	/* SET PWM */
+
+	//DDRB |=  (1 << DDB1) | (1 << DDB2) | (1 << DDB3); // PB1, PB2, PB3 is now an output
+
+	TCCR1A |= (1 << COM1A1) | (1 << COM1B1);
+	TCCR2A |= (1 << COM2A1) | (1 << COM2B1);
+	// set none-inverting mode
+
+	TCCR1A |= (1 << WGM11) | (1 << WGM10);
+	TCCR2A |= (1 << WGM21) | (1 << WGM20);
+	// set fast PWM Mode
+
+	TCCR1B |= (1 << CS10);
+	TCCR2B |= (1 << CS20);
+	// set prescaler to 8 and starts PWM
+}
+
+void sendMeasurent(int x, int y, uint16_t value)
+{
+	char hex[5];
+	
+	itoa(x, hex, 10);
+	sendString(hex, MULDELIMETER);
+	
+	itoa(y, hex, 10);
+	sendString(hex, MULDELIMETER);
+	
+	itoa(value, hex, 10);
+	sendString(hex, MULDELIMETER);
+	
+	sendChar(BREAKLINE);
+}

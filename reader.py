@@ -1,4 +1,5 @@
 import serial
+import numpy as np
 from threading import Thread
 from time import sleep
 import serial.tools.list_ports
@@ -10,7 +11,10 @@ TIMEOUT = 0.1
 VREF = 5.0
 MAXADC = 2**10 - 1
 MULDELIMITER = ","
-SLEEPTIME = 50e-3
+SLEEPTIME = 1e-3
+
+HALFPOINTS = 12 + 1
+TOTALPOINTS = HALFPOINTS*2 + 1
 
 #~ ports = serial.tools.list_ports.comports()
 #~ ports = [str(port) for port in ports]
@@ -32,8 +36,9 @@ class Serial(serial.Serial):
 			else:
 				line += byte
 		line = line.decode("utf-8")
-		if line[-1] == MULDELIMITER:
-			line = line[:-1]
+		if len(line) > 0:
+			if line[-1] == MULDELIMITER:
+				line = line[:-1]
 		return line
 	
 	def internalLoop(self):
@@ -45,7 +50,11 @@ class Serial(serial.Serial):
 				break
 	
 	def getData(self):
-		return self.data
+		try:
+			data = self.data.split(MULDELIMITER)
+			return [int(item) for item in data]
+		except:
+			return [0, 0, 0]
 
 port = Serial(port = '/dev/ttyUSB0', baudrate = BAUDRATE,
                      stopbits = serial.STOPBITS_ONE, parity = serial.PARITY_NONE,
@@ -53,38 +62,32 @@ port = Serial(port = '/dev/ttyUSB0', baudrate = BAUDRATE,
                         
 port.addInternal()
 
-while True:
-	print(port.getData())
-	sleep(SLEEPTIME)
-#~ fig, ax = plt.subplots()
+MATRIX = np.zeros((HALFPOINTS, HALFPOINTS))
 
-#~ i = 0
-#~ EACH = 10
-#~ BUFFER = 50
-#~ 
-#~ ts = [i for i in range(BUFFER)]
-#~ values = [0]*BUFFER
-#~ 
-#~ plot = ax.plot([], [])[0]
-#~ dot = ax.plot([], [], "o")[0]
-#~ ax.set_ylim(0, VREF)
-#~ ax.set_xlim(0, BUFFER-1)
-#~ 
-#~ ax.set_xlabel("Measurements")
-#~ ax.set_ylabel("Voltage (V)")
-#~ 
-#~ text = ax.text(0.8*BUFFER, 0.9*VREF, "")
-#~ 
-#~ def animate(i):
-	#~ value = port.getData()
-	#~ voltage = VREF * value / MAXADC
-	#~ values[i%BUFFER] = voltage
-	#~ 
-	#~ text.set_text("$V = %.4f$"%voltage)	
-	#~ plot.set_data(ts, values)
-	#~ dot.set_data([i%BUFFER], [voltage])
-		#~ 
-	#~ return plot, dot, text
-#~ 
-#~ ani = FuncAnimation(fig, animate, interval=50)
-#~ plt.show()
+def updateMatrix():
+	while True:
+		try:
+			x, y, v = port.getData()
+			MATRIX[y, x] = v
+			sleep(SLEEPTIME)
+		except:
+			pass
+	
+matrixThread = Thread(target = updateMatrix)
+matrixThread.setDaemon(True)
+matrixThread.start()
+
+fig, ax = plt.subplots()
+
+image = ax.imshow(MATRIX, vmin = 0, vmax = 1023, interpolation = 'none')
+
+ax.set_xlabel("Measurements")
+ax.set_ylabel("Voltage (V)")
+
+def animate(i):
+	image.set_array(MATRIX)
+		
+	return image,
+
+ani = FuncAnimation(fig, animate, interval=50)
+plt.show()
