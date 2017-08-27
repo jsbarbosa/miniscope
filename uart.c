@@ -15,7 +15,7 @@
 
 #define MULDELIMETER ','
 #define BREAKLINE '\n'
-#define HALFPOINTS 12
+#define HALFPOINTS 20
 
 uint16_t adc_read(uint8_t adcx);
 void nextX(int current);
@@ -27,7 +27,7 @@ void sendString(char *tosend, char delimiter);
 
 void sendMeasurent(int x, int y, uint16_t value);
 
-int main( void )
+int main(void)
 {
     /*Set baud rate */
     UBRR0H = (MYUBRR >> 8);
@@ -44,11 +44,9 @@ int main( void )
 	
 	setPWM();
 
-	int i, dx = 50, delayx = 5, delayy = 0;
-
-	uint16_t num;
+	int delayx = 5, delayy = 0;
 	
-    int xc, yc;
+    int xc = -HALFPOINTS, yc = -HALFPOINTS;
 
     while(1)
     {
@@ -68,24 +66,26 @@ int main( void )
 		
 		while(yc <= HALFPOINTS)
 		{
+			//xc = -HALFPOINTS;
 			while(xc <= HALFPOINTS)
 			{
 				nextX(xc);
-				sendMeasurent(xc, yc, rand()%1023);
+				sendMeasurent(xc, yc, adc_read(0));
 				xc += 1;
-				_delay_ms(delayx);
+				//_delay_ms(delayx);
 			}
 			
 			nextY(yc);
 			yc += 1;
+			xc -= 1;
 			
 			while(xc >= -HALFPOINTS)
 			{
-				xc -= 1;
 				nextX(xc);
-				sendMeasurent(xc, yc, rand()%1023);
-				_delay_ms(delayx);
+				sendMeasurent(xc, yc, adc_read(0));
+				xc -= 1;
 			}
+			xc += 1;
 			
 			nextY(yc);
 			yc += 1;
