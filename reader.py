@@ -103,7 +103,7 @@ port.writeBytes([WRITE, STOP])
 port.writeBytes([WRITE, HALFPOINTSADDR, HALFPOINTS])
 port.writeBytes([WRITE, DELAYXADDR, 0])
 port.writeBytes([WRITE, DELAYYADDR, 0])
-port.writeBytes([WRITE, NMESUREMENTSADDR, 25])
+port.writeBytes([WRITE, NMESUREMENTSADDR, 2])
 port.writeBytes([WRITE, TAKEIMAGE])
       
 MATRIX = np.zeros((2*HALFPOINTS + 1, 2*HALFPOINTS + 1))
