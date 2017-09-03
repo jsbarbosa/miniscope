@@ -26,6 +26,10 @@
 #define TAKEIMAGE 0x20
 #define STOP 0x40
 
+#define STARTBYTE 0x11
+
+#define TIMEOUT 5000
+
 void delay_ms(uint8_t count);
 
 uint16_t adc_read(uint8_t adcx);
@@ -33,6 +37,7 @@ uint8_t takeImage(void);
 void nextX(int current);
 void nextY(int current);
 void setPWM(void);
+void toZeros(void);
 
 char *getString(uint8_t len);
 uint16_t from8to16(uint8_t first, uint8_t second);
@@ -45,7 +50,7 @@ uint8_t sendMeasurent(int x, int y, uint16_t value);
 
 uint8_t DELAYX, DELAYY, NMESUREMENTS;
 
-uint16_t HALFPOINTS;
+uint8_t HALFPOINTS;
 
 int main(void)
 {
@@ -66,9 +71,7 @@ int main(void)
 
 	char *string;
 
-	uint16_t val;
-
-	HALFPOINTS = 10;
+	HALFPOINTS = 20;
 	DELAYX = 0;
 	DELAYY = 0;
 	NMESUREMENTS = 1;
@@ -76,32 +79,32 @@ int main(void)
     while(1)
     {
 		string = getString(4);
-
+		
 		if(string[0] == WRITE)
 		{
 			if(string[1] == HALFPOINTSADDR)
 			{
-				HALFPOINTS = from8to16(string[2], string[3]);
+				HALFPOINTS = string[3];
 			}
 			else if (string[1] == DELAYXADDR)
 			{
-				DELAYX = from8to16(string[2], string[3]);
+				DELAYX = string[3];
 			}
 			else if (string[1] == DELAYYADDR)
 			{
-				DELAYY = from8to16(string[2], string[3]);
+				DELAYY = string[3];
 			}
 			else if (string[1] == NMESUREMENTSADDR)
 			{
-				NMESUREMENTS = from8to16(string[2], string[3]);
+				NMESUREMENTS = string[3];
 			}
 			else if (string[1] == TAKEIMAGE)
 			{
 				takeImage();
+				toZeros();
 			}
 		}
-        nextX(0);
-        nextY(0);
+		toZeros();
     }
 }
 
@@ -123,20 +126,32 @@ void sendChar(char tosend)
 
 char getChar(void)
 {
-	while (!(UCSR0A & _BV(RXC0)));
-	return (char) UDR0;
+	uint16_t i = TIMEOUT;
+    do{
+        if (UCSR0A & (1<<RXC0)) return (char) UDR0;
+    }while(--i);
+    return 0;
+	//~ while (!(UCSR0A & _BV(RXC0)));
+	//~ return (char) UDR0;
 }
 
 char *getString(uint8_t len)
 {
 	uint8_t i;
-	char temp[len];
-
-	for(i = 0; i<len; i++)
+	uint16_t j;
+	char string[len];
+	for(j = 0; j < TIMEOUT; j++)
 	{
-		temp[i] = getChar();
+		if(getChar() == STARTBYTE)
+		{
+			for(i = 0; i<len; i++)
+			{
+				string[i] = getChar();
+			}
+			j = TIMEOUT;
+		}
 	}
-	return temp;
+	return string;
 }
 
 uint16_t from8to16(uint8_t first, uint8_t second)
@@ -172,6 +187,7 @@ void nextX(int current)
     else{PORTB |= (1 << DDB5);}
 
     OCR1A = 255*abs(current)/HALFPOINTS;
+    delay_ms(DELAYX);
 }
 
 void nextY(int current)
@@ -182,6 +198,7 @@ void nextY(int current)
     else{PORTB |= (1 << DDB7);}
 
     OCR2A = 255*abs(current)/HALFPOINTS;
+    delay_ms(DELAYY);
 }
 
 void setPWM(void)
@@ -224,9 +241,10 @@ uint8_t sendMeasurent(int x, int y, uint16_t value)
 
 		temp = getString(4);
 		received = from8to16(temp[2], temp[3]);
-
-		if((temp[0] == WRITE) & (received == STOP))
+		
+		if((temp[0] == WRITE) & (temp[1] == STOP))
 		{
+			toZeros();
 			return 0;
 		}
 
@@ -240,6 +258,8 @@ uint8_t sendMeasurent(int x, int y, uint16_t value)
 uint8_t takeImage(void)
 {
     int xc = -HALFPOINTS, yc = -HALFPOINTS, stop = 1;
+    
+    nextY(yc);
 
 	while((yc <= HALFPOINTS) & stop)
 	{
@@ -254,13 +274,12 @@ uint8_t takeImage(void)
 			{
 				return 0;
 			}
-			delay_ms(DELAYX);
 		}
-
-		nextY(yc);
+		
 		yc += 1;
+		nextY(yc);
+		
 		xc -= 1;
-		delay_ms(DELAYY);
 
 		while((xc >= -HALFPOINTS) & stop & (yc <= HALFPOINTS))
 		{
@@ -273,14 +292,12 @@ uint8_t takeImage(void)
 			{
 				return 0;
 			}
-			delay_ms(DELAYX);
 		}
 
-		xc += 1;
-
-		nextY(yc);
 		yc += 1;
-		delay_ms(DELAYY);
+		nextY(yc);
+		
+		xc += 1;	
 	}
 	return 1;
 }
@@ -291,4 +308,10 @@ void delay_ms(uint8_t count)
 	{
 		_delay_ms(1);
 	}
+}
+
+void toZeros(void)
+{
+	nextX(0);
+	nextY(0);
 }

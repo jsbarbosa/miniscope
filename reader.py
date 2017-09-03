@@ -20,13 +20,15 @@ DELAYXADDR = 0x02
 DELAYYADDR = 0x03
 NMESUREMENTSADDR = 0x04
 
-HALFPOINTS = 20
+HALFPOINTS = 10
 
 READ = 0x32
 WRITE = 0x16
 
 TAKEIMAGE = 0x20
 STOP = 0x40
+
+STARTBYTE = 0x11
 
 #~ ports = serial.tools.list_ports.comports()
 #~ ports = [str(port) for port in ports]
@@ -41,6 +43,7 @@ class Serial(serial.Serial):
 				break
 			else:
 				line += byte
+
 		line = line.decode()
 		if len(line) > 0:
 			if line[-1] == MULDELIMITER:
@@ -51,10 +54,10 @@ class Serial(serial.Serial):
 		data = port.readLine().split(MULDELIMITER)
 		try:
 			x, y, v = data
-			value = "%04x"%int(v)
+			value = "%06x"%int(v)
 			valuehex = "".join(["\\x%s"%value[2*i:2*i+2] for i in range(len(value)//2)])
 
-			complete = "\\x%02x%s"%(READ, valuehex)
+			complete = "\\x%02x\\x%02x%s"%(STARTBYTE, READ, valuehex)
 			tosend = literal_eval("b'{}'".format(complete))
 
 			self.write(tosend)
@@ -73,14 +76,15 @@ class Serial(serial.Serial):
 		valuehex = "%04x"%int(str(value), 16)
 		return [int(valuehex[i:i+2]) for i in range(0, 4, 2)]
 
-	def writeBytes(self, numbers):
-		valuehex = ""
+	def writeBytes(self, numbers, stdout = True):
+		valuehex = "\\x%02x"%STARTBYTE
 		internal = [0]*4
 		internal[0] = numbers[0]
 
 		if len(numbers) == 2:
-			internal[2:] = self.from16to8(numbers[1])
-		if len(numbers) == 3:
+			internal[1] = numbers[1]
+		elif len(numbers) == 3:
+			internal[1] = numbers[1]
 			internal[2:] = self.from16to8(numbers[2])
 		else:
 			internal[1:] = numbers[1:]
@@ -88,9 +92,10 @@ class Serial(serial.Serial):
 		for number in internal:
 			valuehex += "\\x%02x"%number
 		tosend = literal_eval("b'{}'".format(valuehex))
-
+		
+		if stdout: print(tosend)
+		
 		self.write(tosend)
-		print(valuehex)
 
 		sleep(10e-3)
 
@@ -102,10 +107,10 @@ port = Serial(port = '/dev/ttyUSB0', baudrate = BAUDRATE,
 port.totalFlush()
 
 port.writeBytes([WRITE, STOP])
-port.writeBytes([WRITE, HALFPOINTSADDR, HALFPOINTS])
-port.writeBytes([WRITE, DELAYXADDR, 0])
-port.writeBytes([WRITE, DELAYYADDR, 0])
-port.writeBytes([WRITE, NMESUREMENTSADDR, 2])
+port.writeBytes([WRITE, HALFPOINTSADDR, 0, HALFPOINTS])
+port.writeBytes([WRITE, DELAYXADDR, 0, 0])
+port.writeBytes([WRITE, DELAYYADDR, 0, 0])
+port.writeBytes([WRITE, NMESUREMENTSADDR, 0, 2])
 port.writeBytes([WRITE, TAKEIMAGE])
 
 MATRIX = np.zeros((2*HALFPOINTS + 1, 2*HALFPOINTS + 1))
@@ -145,6 +150,8 @@ cbar = fig.colorbar(image)
 
 ax.set_xlabel("Measurements")
 ax.set_ylabel("Voltage (V)")
+ax.set_xlim(0, 2*HALFPOINTS)
+ax.set_ylim(2*HALFPOINTS, 0)
 
 def animate(i):
 	image.set_array(MATRIX)
