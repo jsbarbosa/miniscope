@@ -30,6 +30,8 @@
 
 #define TIMEOUT 5000
 
+#define MAXHALF 127
+
 void delay_ms(uint8_t count);
 
 uint16_t adc_read(uint8_t adcx);
@@ -186,7 +188,7 @@ void nextX(int current)
     if (current < 0){PORTB |= (1 << DDB4);}
     else{PORTB |= (1 << DDB5);}
 
-    OCR1A = 255*abs(current)/HALFPOINTS;
+    OCR1A = MAXHALF*abs(current)/HALFPOINTS;
     delay_ms(DELAYX);
 }
 
@@ -197,7 +199,7 @@ void nextY(int current)
     if (current < 0){PORTB |= (1 << DDB6);}
     else{PORTB |= (1 << DDB7);}
 
-    OCR2A = 255*abs(current)/HALFPOINTS;
+    OCR2A = MAXHALF*abs(current)/HALFPOINTS;
     delay_ms(DELAYY);
 }
 

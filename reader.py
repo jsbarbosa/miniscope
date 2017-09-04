@@ -1,7 +1,8 @@
 import serial
 import numpy as np
-from threading import Thread
+from copy import copy
 from time import sleep
+from threading import Thread
 import serial.tools.list_ports
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -20,7 +21,7 @@ DELAYXADDR = 0x02
 DELAYYADDR = 0x03
 NMESUREMENTSADDR = 0x04
 
-HALFPOINTS = 10
+HALFPOINTS = 127
 
 READ = 0x32
 WRITE = 0x16
@@ -110,10 +111,11 @@ port.writeBytes([WRITE, STOP])
 port.writeBytes([WRITE, HALFPOINTSADDR, 0, HALFPOINTS])
 port.writeBytes([WRITE, DELAYXADDR, 0, 0])
 port.writeBytes([WRITE, DELAYYADDR, 0, 0])
-port.writeBytes([WRITE, NMESUREMENTSADDR, 0, 2])
+port.writeBytes([WRITE, NMESUREMENTSADDR, 0, 200])
 port.writeBytes([WRITE, TAKEIMAGE])
 
 MATRIX = np.zeros((2*HALFPOINTS + 1, 2*HALFPOINTS + 1))
+CURRENT_MAT = np.zeros_like(MATRIX)
 
 last_x = 0
 last_y = 0
@@ -126,6 +128,10 @@ def updateMatrix():
 			x += HALFPOINTS
 			y += HALFPOINTS
 			MATRIX[y, x] = v
+			CURRENT_MAT[:] = 0
+			CURRENT_MAT[y, x] = 1
+			
+			print(x, y, v)
 			sleep(SLEEPTIME)
 
 			if y == 2*HALFPOINTS:
@@ -144,22 +150,21 @@ matrixThread.start()
 
 fig, ax = plt.subplots()
 
-image = ax.imshow(MATRIX, vmin = 0, vmax = 1023, cmap='Greys', interpolation = 'none')
-last_plot = ax.plot([0], [0], "s", color = "red", alpha = 0.5)[0]
+palette = copy(plt.cm.Greys)
+palette.set_bad('r', 1.0)
+
+image = ax.imshow(MATRIX, vmin = 0, vmax = 100, cmap=palette, interpolation = 'none')
 cbar = fig.colorbar(image)
 
 ax.set_xlabel("Measurements")
 ax.set_ylabel("Voltage (V)")
-ax.set_xlim(0, 2*HALFPOINTS)
-ax.set_ylim(2*HALFPOINTS, 0)
-
 def animate(i):
-	image.set_array(MATRIX)
-	last_plot.set_data([last_x], [last_y])
+	image.set_array(np.ma.masked_where(CURRENT_MAT == 1, MATRIX))
 
-	return image, last_plot
+	return image,
 
 ani = FuncAnimation(fig, animate, interval=50, blit=True)
 plt.show()
 
+np.savetxt("Data.txt", MATRIX, fmt = "%d")
 port.writeBytes([WRITE, STOP])
