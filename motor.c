@@ -40,12 +40,19 @@ void rotateX(uint8_t delay_ms, uint8_t direction)
 
 int main(void)
 {
-    DDRB = 0xFF; // all B as output
+    DDRB = 0b11101111; // all B as output
     PORTB = 0x00; // all low
 
     while(1 == 1)
     {
-		rotateX(10, LEFT);
+		if((PINB & 0b00010000) == 0)
+		{
+			rotateX(10, LEFT);
+		}
+		else
+		{
+			rotateX(10, RIGHT);
+		}
     }
     return 0;
 }
