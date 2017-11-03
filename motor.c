@@ -17,14 +17,14 @@
 #define Mz2 _BV(PD4)
 #define Mz3 _BV(PD5)
 
-#define XLEFT 0x01
-#define XRIGHT 0x02
+#define XLEFT 0xA0
+#define XRIGHT 0xA1
 
-#define YLEFT 0xA1
-#define YRIGHT 0xA2
+#define YLEFT 0xB0
+#define YRIGHT 0xB1
 
-#define ZLEFT 0xB1
-#define ZRIGHT 0xB2
+#define ZLEFT 0xC0
+#define ZRIGHT 0xC1
 
 #define RIGHT 1
 #define LEFT 0
@@ -35,6 +35,8 @@
 #define MYUBRR (FOSC/16/BAUD -1)
 #define TIMEOUT 100
 
+uint16_t XROT, YROT, ZROT;
+
 void delay(void)
 {
 	_delay_ms(3);
@@ -43,79 +45,90 @@ void delay(void)
 
 void rotateX(uint8_t direction)
 {	
-	if(direction == RIGHT)
+	uint16_t i;
+	for(i = 0; i < XROT; i++)
 	{
-		PORTB = Mx0;
-		delay();
-		PORTB = Mx1;
-		delay();
-		PORTB = Mx2;
-		delay();
-		PORTB = Mx3;
-		delay();
-	}
-	else
-	{
-		PORTB = Mx3;
-		delay();
-		PORTB = Mx2;
-		delay();
-		PORTB = Mx1;
-		delay();
-		PORTB = Mx0;
-		delay();
+		if(direction == RIGHT)
+		{
+			PORTB = Mx0;
+			delay();
+			PORTB = Mx1;
+			delay();
+			PORTB = Mx2;
+			delay();
+			PORTB = Mx3;
+			delay();
+		}
+		else
+		{
+			PORTB = Mx3;
+			delay();
+			PORTB = Mx2;
+			delay();
+			PORTB = Mx1;
+			delay();
+			PORTB = Mx0;
+			delay();
+		}
 	}
 }
 
 void rotateY(uint8_t direction)
 {	
-	if(direction == RIGHT)
+	uint16_t i;
+	for(i = 0; i < YROT; i++)
 	{
-		PORTB = My0;
-		delay();
-		PORTB = My1;
-		delay();
-		PORTB = My2;
-		delay();
-		PORTB = My3;
-		delay();
-	}
-	else
-	{
-		PORTB = My3;
-		delay();
-		PORTB = My2;
-		delay();
-		PORTB = My1;
-		delay();
-		PORTB = My0;
-		delay();
+		if(direction == RIGHT)
+		{
+			PORTB = My0;
+			delay();
+			PORTB = My1;
+			delay();
+			PORTB = My2;
+			delay();
+			PORTB = My3;
+			delay();
+		}
+		else
+		{
+			PORTB = My3;
+			delay();
+			PORTB = My2;
+			delay();
+			PORTB = My1;
+			delay();
+			PORTB = My0;
+			delay();
+		}
 	}
 }
 
 void rotateZ(uint8_t direction)
-{		
-	if(direction == RIGHT)
+{	uint16_t i;
+	for(i = 0; i < ZROT; i++)
 	{
-		PORTD = Mz0;
-		delay();
-		PORTD = Mz1;
-		delay();
-		PORTD = Mz2;
-		delay();
-		PORTD = Mz3;
-		delay();
-	}
-	else
-	{
-		PORTD = Mz3;
-		delay();
-		PORTD = Mz2;
-		delay();
-		PORTD = Mz1;
-		delay();
-		PORTD = Mz0;
-		delay();
+		if(direction == RIGHT)
+		{
+			PORTD = Mz0;
+			delay();
+			PORTD = Mz1;
+			delay();
+			PORTD = Mz2;
+			delay();
+			PORTD = Mz3;
+			delay();
+		}
+		else
+		{
+			PORTD = Mz3;
+			delay();
+			PORTD = Mz2;
+			delay();
+			PORTD = Mz1;
+			delay();
+			PORTD = Mz0;
+			delay();
+		}
 	}
 }
 
@@ -154,6 +167,10 @@ int main(void)
     
     DDRD = 0xFF; // all B as output
     PORTD = 0x00; // all low
+    
+    XROT = 1;
+    YROT = 1;
+    ZROT = 1;
         
     initUART();
     
@@ -165,33 +182,54 @@ int main(void)
 		
 		if(command != 0)
 		{
-			if(command == XRIGHT)
+			if((command >= XLEFT) & (command < YLEFT))
 			{
-				rotateX(RIGHT);
+				command -= XLEFT;
+				if(command <= 1)
+				{
+					rotateX(command);
+				}
+				else if(command == 2)
+				{
+					XROT = 1;
+				}
+				else
+				{
+					XROT = 64*(command - 2);
+				}
 			}
-			else if(command == XLEFT)
+			else if((command >= YLEFT) & (command < ZLEFT))
 			{
-				rotateX(LEFT);
+				command -= YLEFT;
+				if(command <= 1)
+				{
+					rotateY(command);
+				}
+				else if(command == 2)
+				{
+					YROT = 1;
+				}
+				else
+				{
+					YROT = 64*(command - 2);
+				}
 			}
-			
-			else if(command == YRIGHT)
+			if(command >= ZLEFT)
 			{
-				rotateY(RIGHT);
+				command -= ZLEFT;
+				if(command <= 1)
+				{
+					rotateZ(command);
+				}
+				else if(command == 2)
+				{
+					ZROT = 1;
+				}
+				else
+				{
+					ZROT = 64*(command - 2);
+				}
 			}
-			else if(command == YLEFT)
-			{
-				rotateY(LEFT);
-			}
-			
-			else if(command == ZRIGHT)
-			{
-				rotateZ(RIGHT);
-			}
-			else if(command == ZLEFT)
-			{
-				rotateZ(LEFT);
-			}
-			
 			PORTB = 0x00;
 			PORTD = 0x00;
 			sendChar(0xFF);
