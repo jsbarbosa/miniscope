@@ -37,8 +37,8 @@
 
 void delay(void)
 {
-	_delay_ms(2);
-	_delay_us(500);
+	_delay_ms(3);
+	//_delay_us(500);
 }
 
 void rotateX(uint8_t direction)
@@ -97,24 +97,24 @@ void rotateZ(uint8_t direction)
 {		
 	if(direction == RIGHT)
 	{
-		PORTD |= Mz0;
+		PORTD = Mz0;
 		delay();
-		PORTD |= Mz1;
+		PORTD = Mz1;
 		delay();
-		PORTD |= Mz2;
+		PORTD = Mz2;
 		delay();
-		PORTD |= Mz3;
+		PORTD = Mz3;
 		delay();
 	}
 	else
 	{
-		PORTD |= Mz3;
+		PORTD = Mz3;
 		delay();
-		PORTD |= Mz2;
+		PORTD = Mz2;
 		delay();
-		PORTD |= Mz1;
+		PORTD = Mz1;
 		delay();
-		PORTD |= Mz0;
+		PORTD = Mz0;
 		delay();
 	}
 }
@@ -193,7 +193,7 @@ int main(void)
 			}
 			
 			PORTB = 0x00;
-			PORTD &= 0b11000011;
+			PORTD = 0x00;
 			sendChar(0xFF);
 		}
     }
