@@ -39,8 +39,8 @@ uint16_t XROT, YROT, ZROT;
 
 void delay(void)
 {
-	_delay_ms(3);
-	//_delay_us(500);
+	_delay_ms(2);
+	_delay_us(500);
 }
 
 void rotateX(uint8_t direction)
