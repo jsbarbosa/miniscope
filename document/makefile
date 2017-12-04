@@ -1,8 +1,7 @@
-useless = *.aux *.log *.out *.xml *.gz *.tdo *.thm *.toc
+useless = *.aux *.log *.out *.xml *.gz *.tdo *.thm *.toc *.bbl *.blg *.bib
 
 pdf : master.tex
 	pdflatex $<
-	rm $(useless)
 
 clean :
 	rm $(useless)

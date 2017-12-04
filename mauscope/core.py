@@ -47,9 +47,12 @@ def commandLoop(serial):
         except Exception as e:
             pass
 
-class Table():
+class Stage():
     def __init__(self, port, plane = None):
-        self.port = Serial(port)
+        if type(port) is str:
+            self.port = Serial(port)
+        else:
+            self.port = port
         self.plane = plane
 
         self.ax = None
@@ -59,77 +62,106 @@ class Table():
         self.currenty = 0
         self.currentz = 0
 
-    def setOrigin(self):
-        self.port.send(X512)
-        self.port.send(Y512)
-        self.port.send(Z512)
+        self.break_ = False
 
-        print("Setting x...")
-        for i in range(XTURNS):
+    def setOrigin(self):
+        self.port.send(X64)
+        self.port.send(Y64)
+        self.port.send(Z64)
+
+        print("Setting x (Ctrl c if set)...")
+        for i in range(8*XTURNS):
             try:
                 self.port.send(LEFT)
             except KeyboardInterrupt:
                 break
-        print("Setting y...")
-        for i in range(YTURNS):
+        print("Setting y (Ctrl c if set)...")
+        for i in range(8*YTURNS):
             try:
                 self.port.send(BACKWARD)
             except KeyboardInterrupt:
                 break
-        print("Setting z...")
-        for j in range(ZTURNS):
+        print("Setting z (Ctrl c if set)...")
+        for j in range(8*ZTURNS):
             try:
                 self.port.send(DOWN)
             except KeyboardInterrupt:
                 break
 
+    def move(self, Nsteps, dir_):
+        for i in range(Nsteps):
+            self.port.send(dir_)
+
     def getNSteps(self, res):
         if (not type(res) is int) or (res > 9) or (res < 1):
             raise(Exception("Resolution is not an int number. Min value is 1, max is 9."))
 
-        return int(64 * (9 - res))
+        val = int(64 * (9 - res))
+        if val == 0:
+            return 1
+        return val
 
-    def plot(self, plane, xmax, ymax):
+    def plot(self, plane, x, y, z):
         self.fig = plt.figure()
-        x = np.linspace(0, xmax, 10)
-        y = np.linspace(0, ymax, 10)
-        x, y = np.meshgrid(x, y)
-        z = plane.getZ(x, y)
 
         self.ax = self.fig.gca(projection='3d')
-        self.ax.plot_surface(x, y, z)
-        self.dot, = self.ax.plot([self.currentx], [self.currenty], [self.currentz], marker="o")
+        self.ax.plot_surface(x, y, z, color = "g")
 
-    def scan(self, xlength_cm, ylength_cm, xres = 1, yres = 1, zres = 5, plane = None):
-        self.thread = Thread(target = self.scanThread, args=(xlength_cm, ylength_cm, xres, yres, zres, plane))
-        # self.thread.daemon = True
+        xstep = x[0, 1] - x[0, 0]
+        ystep = y[1, 0] - y[0, 0]
+
+        x = x.ravel()
+        y = y.ravel()
+        z = z.ravel()
+        bottom = np.zeros_like(z)
+
+        if len(z) < 200:
+            self.ax.bar3d(x - 0.5*xstep, y- 0.5*ystep, bottom, xstep*0.9, ystep*0.9, z, shade=True, alpha = 0.9)
+        self.dot, = self.ax.plot([self.currentx], [self.currenty], [self.currentz], marker="o", color = "r")
+
+        self.ax.set_xlabel("$x$ ($\mu$m)")
+        self.ax.set_ylabel("$y$ ($\mu$m)")
+        self.ax.set_zlabel("$z$ ($\mu$m)")
+
+    def scan(self, xlength_um, ylength_um, xres = 8, yres = 8, zres = 9, plane = None):
+        self.thread = Thread(target = self.scanThread, args=(xlength_um, ylength_um, xres, yres, zres, plane))
         self.thread.start()
 
     def plotThread(self):
         while self.dot == None:
             sleep(1)
-        plt.ion()
-        while True:
-            plt.pause(0.01)
-            self.dot.set_data([self.currentx], [self.currenty])
-            self.dot.set_3d_properties([self.currentz])
-            plt.draw()
+        while self.thread.is_alive():
+            try:
+                ani = FuncAnimation(self.fig, self.updatePlot)
+                plt.show()
+            except KeyboardInterrupt:
+                self.break_ = True
+                break
+            else:
+                pass
 
     def updatePlot(self, i):
         self.dot.set_data([self.currentx], [self.currenty])
         self.dot.set_3d_properties([self.currentz])
         return self.dot,
 
-    def scanThread(self, xlength_cm, ylength_cm, xres = 1, yres = 1, zres = 5, plane = None):
-        x = xlength_cm * 0.01
-        y = ylength_cm * 0.01
+    def setXStepsPerCall(self, n):
+        self.port.send(eval("X%d"%n))
 
+    def setYStepsPerCall(self, n):
+        self.port.send(eval("Y%d"%n))
+
+    def setZStepsPerCall(self, n):
+        self.port.send(eval("Z%d"%n))
+
+    def scanThread(self, x, y, xres, yres, zres, plane):
         xsteps = self.getNSteps(xres)
         ysteps = self.getNSteps(yres)
         zsteps = self.getNSteps(zres)
-        self.port.send(eval("X%d"%xsteps))
-        self.port.send(eval("Y%d"%ysteps))
-        self.port.send(eval("Z%d"%zsteps))
+
+        self.setXStepsPerCall(xsteps)
+        self.setYStepsPerCall(ysteps)
+        self.setZStepsPerCall(zsteps)
 
         nx = int(round((x / XSTEP) / xsteps, 0))
         ny = int(round((y / YSTEP) / ysteps, 0))
@@ -144,27 +176,33 @@ class Table():
         self.plane = plane
 
         if self.plane != None:
-            self.plot(self.plane, x, y)
+            xmesh = np.arange(0, x, xsteps*XSTEP)
+            ymesh = np.arange(0, y, ysteps*YSTEP)
+            xmesh, ymesh = np.meshgrid(xmesh, ymesh)
+            zmesh = plane.getZ(xmesh, ymesh)
+            self.plot(self.plane, xmesh, ymesh, zmesh)
 
         for i in range(ny):
-            if i %2 == 0: xdir = RIGHT
+            if i%2 == 0: xdir = RIGHT
             else: xdir = LEFT
-
+            self.currenty = i*ysteps*YSTEP
             for j in range(nx):
-                if xdir == LEFT:
-                    self.currentx = (nx - j)*xsteps*XSTEP
-                self.currentx = j*xsteps*XSTEP
-                self.currenty = i*ysteps*YSTEP
-
+                jj = j
+                if xdir == LEFT: jj = nx - j - 1
                 if plane != None:
-                    self.currentz = plane.getZ(self.currentx, self.currenty)
-                    z = self.currentz - z
+                    self.currentz = zmesh[i, jj]
+                    z = zmesh[i, jj] - z
                     nz = int(round((abs(z) / ZSTEP) / zsteps, 0))
                     for k in range(nz):
                         if z > 0:
                             self.port.send(UP)
                         else:
                             self.port.send(DOWN)
+
+                        if self.break_:
+                            return None
+
                     z = self.currentz
+                self.currentx = jj*xsteps*XSTEP
                 self.port.send(xdir)
             self.port.send(FORWARD)

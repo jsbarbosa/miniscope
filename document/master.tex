@@ -20,12 +20,14 @@
 
 \usepackage{listings}
 \usepackage{color}
+\usepackage[utf8]{inputenc}
+\usepackage[round, numbers]{natbib}
 
 \definecolor{mygreen}{rgb}{0,0.6,0}
 
 \lstset{ %
 	backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}; should come as last argument
-	basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+	basicstyle=\scriptsize,        % the size of the fonts that are used for the code
 	breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
 	breaklines=true,                 % sets automatic line breaking
 	commentstyle=\color{mygreen},    
@@ -53,8 +55,10 @@
 \input{sections/introduction.tex}
 \input{sections/resultados.tex}
 \input{sections/conclusion.tex}
-\printbibliography[heading=bibintoc]
-\label{bib:mybiblio}
+
+\bibliography{bib/mybib}
+\bibliographystyle{plainnat}
+
 \appendix
 \input{sections/appAname.tex}
 \end{document}
