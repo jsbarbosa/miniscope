@@ -7,7 +7,7 @@
 #define PORT_X PORTB
 #define PORT_Y PORTA
 #define PORT_Z PORTA
-#define delay 15
+#define delay 12
 
 uint8_t MX[4] = {_BV(PB0), _BV(PB1), _BV(PB2), _BV(PB3)};
 uint8_t MY[4] = {_BV(PA0), _BV(PA1), _BV(PA2), _BV(PA3)};
@@ -50,7 +50,7 @@ uint8_t getMotor(uint8_t val)
 uint8_t getSteps(uint8_t val)
 {
   val &= 0b11111000;
-  return (val >> 3);
+  return (val >> 3) + 1;
 }
 
 void rotateFromUart(uint8_t command)
