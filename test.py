@@ -13,7 +13,7 @@ for port in ports:
     print(port)
 
 class MauscopeSerial(Serial):
-    def __init__(self, port, baudrate = 9600, wait = 0.1):
+    def __init__(self, port, baudrate = 9600, wait = 0.01):
         super(MauscopeSerial, self).__init__(port, baudrate = baudrate)
         self.wait = wait
 
