@@ -7,11 +7,11 @@
 #define PORT_X PORTB
 #define PORT_Y PORTA
 #define PORT_Z PORTA
-#define delay 12
+#define delay 2.5 
 
-uint8_t MX[4] = {_BV(PB0), _BV(PB1), _BV(PB2), _BV(PB3)};
-uint8_t MY[4] = {_BV(PA0), _BV(PA1), _BV(PA2), _BV(PA3)};
-uint8_t MZ[4] = {_BV(PA4), _BV(PA5), _BV(PA6), _BV(PA7)};
+uint8_t MX[4] = {_BV(PB3), _BV(PB2), _BV(PB1), _BV(PB0)};
+uint8_t MY[4] = {_BV(PA3), _BV(PA2), _BV(PA1), _BV(PA0)};
+uint8_t MZ[4] = {_BV(PA7), _BV(PA6), _BV(PA5), _BV(PA4)};
 
 void makeRotation(volatile uint8_t *port, uint8_t *bits, uint8_t dir)
 {
@@ -20,18 +20,18 @@ void makeRotation(volatile uint8_t *port, uint8_t *bits, uint8_t dir)
 	{
 		for(i = 0; i < 4; i++)
 		{
-			*port |= bits[i];
+			*port |= bits[(i + 1) % 4] | bits[(i + 2) % 4];
+			*port &= ~bits[i];
 			_delay_ms(delay);
-			*port ^= bits[i];
 		}
 	}
 	else
 	{
 		for(i = 3; i >= 0; i--)
 		{
-			*port |= bits[i];
+			*port |= bits[(i + 1) % 4] | bits[(i + 2) % 4];
+			*port &= ~bits[i];
 			_delay_ms(delay);
-			*port ^= bits[i];
 		}
 	}
 }
@@ -65,6 +65,7 @@ void rotateFromUart(uint8_t command)
 		{
 			makeRotation(&PORT_X, MX, direction);
 		}
+		PORT_X &= ~(MX[0] | MX[1] | MX[2] | MX[3]); 
 	}
 	if (motor == 1)
 	{
@@ -72,6 +73,7 @@ void rotateFromUart(uint8_t command)
 		{
 			makeRotation(&PORT_Y, MY, direction);
 		}
+		PORT_Y &= ~(MY[0] | MY[1] | MY[2] | MY[3]); 
 	}
 	if (motor == 2)
 	{
@@ -79,6 +81,7 @@ void rotateFromUart(uint8_t command)
 		{
 			makeRotation(&PORT_Z, MZ, direction);
 		}
+		PORT_Z &= ~(MZ[0] | MZ[1] | MZ[2] | MZ[3]); 
 	}
 }
 
