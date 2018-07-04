@@ -7,32 +7,25 @@
 #define PORT_X PORTB
 #define PORT_Y PORTA
 #define PORT_Z PORTA
-#define delay 12
+#define delay 2.5 
 
-uint8_t MX[4] = {_BV(PB0), _BV(PB1), _BV(PB2), _BV(PB3)};
-uint8_t MY[4] = {_BV(PA0), _BV(PA1), _BV(PA2), _BV(PA3)};
-uint8_t MZ[4] = {_BV(PA4), _BV(PA5), _BV(PA6), _BV(PA7)};
+const uint8_t MX_0[4] = {_BV(PB0), _BV(PB1), _BV(PB2), _BV(PB3)};
+const uint8_t MX_1[4] = {_BV(PB3), _BV(PB2), _BV(PB1), _BV(PB0)};
 
-void makeRotation(volatile uint8_t *port, uint8_t *bits, uint8_t dir)
+const uint8_t MY_0[4] = {_BV(PA0), _BV(PA1), _BV(PA2), _BV(PA3)};
+const uint8_t MY_1[4] = {_BV(PA3), _BV(PA2), _BV(PA1), _BV(PA0)};
+
+const uint8_t MZ_0[4] = {_BV(PA4), _BV(PA5), _BV(PA6), _BV(PA7)};
+const uint8_t MZ_1[4] = {_BV(PA7), _BV(PA6), _BV(PA5), _BV(PA4)};
+
+void makeRotation(volatile uint8_t *port, const uint8_t *bits)
 {
 	int8_t i;
-	if(dir)
+	for(i = 0; i < 4; i++)
 	{
-		for(i = 0; i < 4; i++)
-		{
-			*port |= bits[i];
-			_delay_ms(delay);
-			*port ^= bits[i];
-		}
-	}
-	else
-	{
-		for(i = 3; i >= 0; i--)
-		{
-			*port |= bits[i];
-			_delay_ms(delay);
-			*port ^= bits[i];
-		}
+		*port |= bits[(i + 1) % 4] | bits[(i + 2) % 4];
+		*port &= ~bits[i];
+		_delay_ms(delay);
 	}
 }
 
@@ -61,24 +54,57 @@ void rotateFromUart(uint8_t command)
 	direction = getDirection(command);
 	if (motor == 0)
 	{
-		for(i = 0; i < steps; i++)
+		if(direction)
 		{
-			makeRotation(&PORT_X, MX, direction);
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_X, MX_1);
+			}
 		}
+		else
+		{
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_X, MX_0);
+			}
+		}
+		PORT_X &= ~(MX_0[0] | MX_0[1] | MX_0[2] | MX_0[3]); 
 	}
 	if (motor == 1)
 	{
-		for(i = 0; i < steps; i++)
+		if(direction)
 		{
-			makeRotation(&PORT_Y, MY, direction);
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_Y, MY_1);
+			}
 		}
+		else
+		{
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_Y, MY_0);
+			}
+		}
+		PORT_Y &= ~(MY_0[0] | MY_0[1] | MY_0[2] | MY_0[3]); 
 	}
 	if (motor == 2)
 	{
-		for(i = 0; i < steps; i++)
+		if(direction)
 		{
-			makeRotation(&PORT_Z, MZ, direction);
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_Z, MZ_1);
+			}
 		}
+		else
+		{
+			for(i = 0; i < steps; i++)
+			{
+				makeRotation(&PORT_Z, MZ_0);
+			}
+		}
+		PORT_Z &= ~(MZ_0[0] | MZ_0[1] | MZ_0[2] | MZ_0[3]); 
 	}
 }
 
