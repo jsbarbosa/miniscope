@@ -2,129 +2,238 @@
 #include <stdint.h>                 // needed for uint8_t
 #include <util/delay.h>
 
-#include "uart.h"
+#define Mx0 _BV(PB0)
+#define Mx1 _BV(PB1)
+#define Mx2 _BV(PB2)
+#define Mx3 _BV(PB3)
 
-#define PORT_X PORTB
-#define PORT_Y PORTA
-#define PORT_Z PORTA
-#define delay 2.5 
+#define My0 _BV(PB4)
+#define My1 _BV(PB5)
+#define My2 _BV(PB6)
+#define My3 _BV(PB7)
 
-const uint8_t MX_0[4] = {_BV(PB0), _BV(PB1), _BV(PB2), _BV(PB3)};
-const uint8_t MX_1[4] = {_BV(PB3), _BV(PB2), _BV(PB1), _BV(PB0)};
+#define Mz0 _BV(PD2)
+#define Mz1 _BV(PD3)
+#define Mz2 _BV(PD4)
+#define Mz3 _BV(PD5)
 
-const uint8_t MY_0[4] = {_BV(PA0), _BV(PA1), _BV(PA2), _BV(PA3)};
-const uint8_t MY_1[4] = {_BV(PA3), _BV(PA2), _BV(PA1), _BV(PA0)};
+#define XLEFT 0xA0
+#define XRIGHT 0xA1
 
-const uint8_t MZ_0[4] = {_BV(PA4), _BV(PA5), _BV(PA6), _BV(PA7)};
-const uint8_t MZ_1[4] = {_BV(PA7), _BV(PA6), _BV(PA5), _BV(PA4)};
+#define YLEFT 0xB0
+#define YRIGHT 0xB1
 
-void makeRotation(volatile uint8_t *port, const uint8_t *bits)
+#define ZLEFT 0xC0
+#define ZRIGHT 0xC1
+
+#define RIGHT 1
+#define LEFT 0
+
+// UART
+#define FOSC 1000000 	// Clock Speed
+#define BAUD 4800
+#define MYUBRR (FOSC/16/BAUD -1)
+#define TIMEOUT 100
+
+uint16_t XROT, YROT, ZROT;
+
+void delay(void)
 {
-	int8_t i;
-	for(i = 0; i < 4; i++)
+	_delay_ms(2);
+	_delay_us(500);
+}
+
+void rotateX(uint8_t direction)
+{	
+	uint16_t i;
+	for(i = 0; i < XROT; i++)
 	{
-		*port |= bits[(i + 1) % 4] | bits[(i + 2) % 4];
-		*port &= ~bits[i];
-		_delay_ms(delay);
-	}
-}
-
-uint8_t getDirection(uint8_t val)
-{
-  return val &= 1;
-}
-
-uint8_t getMotor(uint8_t val)
-{
-  val &= 0b00000110;
-  return (val >> 1);
-}
-
-uint8_t getSteps(uint8_t val)
-{
-  val &= 0b11111000;
-  return (val >> 3) + 1;
-}
-
-void rotateFromUart(uint8_t command)
-{
-	uint8_t motor, steps, direction, i = 0;
-	motor = getMotor(command);
-	steps = getSteps(command);
-	direction = getDirection(command);
-	if (motor == 0)
-	{
-		if(direction)
+		if(direction == RIGHT)
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_X, MX_1);
-			}
+			PORTB = Mx0;
+			delay();
+			PORTB = Mx1;
+			delay();
+			PORTB = Mx2;
+			delay();
+			PORTB = Mx3;
+			delay();
 		}
 		else
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_X, MX_0);
-			}
+			PORTB = Mx3;
+			delay();
+			PORTB = Mx2;
+			delay();
+			PORTB = Mx1;
+			delay();
+			PORTB = Mx0;
+			delay();
 		}
-		PORT_X &= ~(MX_0[0] | MX_0[1] | MX_0[2] | MX_0[3]); 
 	}
-	if (motor == 1)
+}
+
+void rotateY(uint8_t direction)
+{	
+	uint16_t i;
+	for(i = 0; i < YROT; i++)
 	{
-		if(direction)
+		if(direction == RIGHT)
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_Y, MY_1);
-			}
+			PORTB = My0;
+			delay();
+			PORTB = My1;
+			delay();
+			PORTB = My2;
+			delay();
+			PORTB = My3;
+			delay();
 		}
 		else
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_Y, MY_0);
-			}
+			PORTB = My3;
+			delay();
+			PORTB = My2;
+			delay();
+			PORTB = My1;
+			delay();
+			PORTB = My0;
+			delay();
 		}
-		PORT_Y &= ~(MY_0[0] | MY_0[1] | MY_0[2] | MY_0[3]); 
 	}
-	if (motor == 2)
+}
+
+void rotateZ(uint8_t direction)
+{	uint16_t i;
+	for(i = 0; i < ZROT; i++)
 	{
-		if(direction)
+		if(direction == RIGHT)
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_Z, MZ_1);
-			}
+			PORTD = Mz0;
+			delay();
+			PORTD = Mz1;
+			delay();
+			PORTD = Mz2;
+			delay();
+			PORTD = Mz3;
+			delay();
 		}
 		else
 		{
-			for(i = 0; i < steps; i++)
-			{
-				makeRotation(&PORT_Z, MZ_0);
-			}
+			PORTD = Mz3;
+			delay();
+			PORTD = Mz2;
+			delay();
+			PORTD = Mz1;
+			delay();
+			PORTD = Mz0;
+			delay();
 		}
-		PORT_Z &= ~(MZ_0[0] | MZ_0[1] | MZ_0[2] | MZ_0[3]); 
 	}
+}
+
+void initUART(void)
+{
+	/*Set baud rate */
+    UBRR0H = (MYUBRR >> 8);
+    UBRR0L = MYUBRR;
+
+    UCSR0B = (1 << TXEN0)| (1 << TXCIE0) | (1 << RXEN0) | (1 << RXCIE0); ;      // Enable receiver and transmitter
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);    // Set frame: 8data, 1 stp
+
+	DDRD &= 0b11111110; //set all of port D as inputs except for TX
+}
+
+uint8_t getChar(void)
+{
+	uint16_t i;
+	for(i = 0; i < TIMEOUT; i++)
+	{
+		if (UCSR0A & (1<<RXC0)) return (char) UDR0;
+    }
+    return 0;
+}
+
+void sendChar(uint8_t tosend)
+{
+	while (( UCSR0A & (1<<UDRE0))  == 0){};
+	UDR0 = tosend;
 }
 
 int main(void)
 {
-    DDRB = 0xFF & ~(1 << UART_RX); // all B as output
-    DDRA = 0xFF;
-    PORT_X = 0 | (1 << UART_RX); // all low
-    PORT_Y = 0;
-    PORT_Z = 0;
+    DDRB = 0xFF; // all B as output
+    PORTB = 0x00; // all low
     
-    rotateFromUart(0b11111001);
-	rotateFromUart(0b11111011);
-    rotateFromUart(0b11111101);
+    DDRD = 0xFF; // all B as output
+    PORTD = 0x00; // all low
+    
+    XROT = 1;
+    YROT = 1;
+    ZROT = 1;
+        
+    initUART();
     
     uint8_t command;
-    while(1)
+
+    while(1 == 1)
     {
-		command = uart_getc();
-		rotateFromUart(command);
+		command = getChar();
+		
+		if(command != 0)
+		{
+			if((command >= XLEFT) & (command < YLEFT))
+			{
+				command -= XLEFT;
+				if(command <= 1)
+				{
+					rotateX(command);
+				}
+				else if(command == 2)
+				{
+					XROT = 1;
+				}
+				else
+				{
+					XROT = 64*(command - 2);
+				}
+			}
+			else if((command >= YLEFT) & (command < ZLEFT))
+			{
+				command -= YLEFT;
+				if(command <= 1)
+				{
+					rotateY(command);
+				}
+				else if(command == 2)
+				{
+					YROT = 1;
+				}
+				else
+				{
+					YROT = 64*(command - 2);
+				}
+			}
+			if(command >= ZLEFT)
+			{
+				command -= ZLEFT;
+				if(command <= 1)
+				{
+					rotateZ(command);
+				}
+				else if(command == 2)
+				{
+					ZROT = 1;
+				}
+				else
+				{
+					ZROT = 64*(command - 2);
+				}
+			}
+			PORTB = 0x00;
+			PORTD = 0x00;
+			sendChar(0xFF);
+		}
     }
     return 0;
 }
