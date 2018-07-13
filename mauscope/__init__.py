@@ -1,16 +1,21 @@
+import serial
 from time import sleep
-from serial import Serial
 import serial.tools.list_ports as find_ports
+
+__version__ = "1.0.1"
 
 X_MOTOR = 0
 Y_MOTOR = 1
 Z_MOTOR = 2
+MOTOR_TURN = 16 * 32 # steps
 POSITIVE = 1
 NEGATIVE = 0
+MAX_STEPS = 32
+STEP_TIME = 11e-3
 
-ports = find_ports.comports()
-for port in ports:
-    print(port)
+def findPorts():
+    ports = [port.device for port in find_ports.comports()]
+    return ports
 
 def getUserInput(label):
     while True:
@@ -19,10 +24,9 @@ def getUserInput(label):
         except ValueError:
             pass
 
-class MauscopeSerial(Serial):
-    def __init__(self, port, wait = 0.01):
-        super(MauscopeSerial, self).__init__(port, baudrate = 9600)
-        self.wait = wait
+class Stage(serial.Serial):
+    def __init__(self, port):
+        super(Stage, self).__init__(port, baudrate = 9600)
 
     def make8Byte(self, steps, motor, direction):
         if steps > 32 or steps < 1:
@@ -39,25 +43,19 @@ class MauscopeSerial(Serial):
         return steps | motor | direction
 
     def send(self, steps, motor, direction):
+        global STEP_TIME
         number = self.make8Byte(steps, motor, direction)
         self.write([number])
-        sleep(self.wait)
+        sleep(STEP_TIME * steps)
+
+    def move(self, steps, motor, direction):
+        global MAX_STEPS, STEP_TIME
+        n_max = steps // MAX_STEPS
+        remaining = steps % MAX_STEPS
+        for i in range(n_max):
+            self.send(MAX_STEPS, motor, direction)
+        if remaining:
+            self.send(remaining, motor, direction)
 
     def printB(self, number):
         print("{0:b}".format(number))
-
-port = input("Please enter the port: ")
-serial = MauscopeSerial(port = port)
-
-while True:
-    try:
-        steps = getUserInput("Steps")
-        motor = getUserInput("Motor")
-        direction = getUserInput("Direction")
-        serial.send(steps, motor, direction)
-    except KeyboardInterrupt:
-        break
-    except ValueError as e:
-        print(e)
-print("")
-serial.close()
